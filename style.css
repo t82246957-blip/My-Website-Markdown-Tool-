@@ -327,3 +327,23 @@ body {
 #btn-theme:active {
   opacity: 0.7;
 }
+
+/* ===== AI 模型下拉選單 ===== */
+#ai-model {
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--color-code-inline);
+  color: var(--color-text);
+  transition: opacity 0.2s, background 0.3s;
+  user-select: none;
+  outline: none;
+}
+
+#ai-model:active {
+  opacity: 0.7;
+}

@@ -9,10 +9,12 @@ const pagesContainer = document.getElementById('pages-container');
 const measureBox = document.getElementById('measure-box');
 const btnToggle = document.getElementById('btn-toggle');
 const btnTheme = document.getElementById('btn-theme');
+const modelSelect = document.getElementById('ai-model');
 const toast = document.getElementById('toast');
 
 // --- 狀態 ---
 let isPreviewMode = false;
+let currentModel = localStorage.getItem('aiModel') || 'claude';
 
 // --- 每頁最大高度（px）---
 // 大約等同 A4 紙的比例，在 iPad 上貼入筆記軟體時不會被縮太小
@@ -33,8 +35,8 @@ marked.setOptions({
  * 會保護 LaTeX 不被 marked.js 破壞
  */
 function renderToHTML(rawText) {
-  // 先把 ChatGPT 常見 LaTeX 寫法轉成 KaTeX auto-render 可識別的 $ / $$ 格式
-  const normalizedText = normalizeMathSyntax(rawText);
+  // 依照使用者選擇的 AI 模型套用對應的 LaTeX 前處理
+  const normalizedText = normalizeMathSyntax(rawText, currentModel);
   const mathBlocks = [];
 
   // 步驟 1：抽出 LaTeX，用佔位符取代
@@ -69,11 +71,16 @@ function renderToHTML(rawText) {
 
 /**
  * 將不同 AI 常見輸出的數學語法統一：
- * 1) \[ ... \] => $$ ... $$
- * 2) \( ... \) => $ ... $
- * 3) ```math ... ``` => $$ ... $$
+ * 通用規則 (Claude / Gemini / ChatGPT 都套用)：
+ *   1) \[ ... \] => $$ ... $$
+ *   2) \( ... \) => $ ... $
+ *   3) ```math ... ``` => $$ ... $$
+ *
+ * ChatGPT 額外規則：
+ *   4) 清除公式中間的 ===== 雜訊
+ *   5) 含 LaTeX 指令的裸 [ ... ] / ( ... ) 轉成 $$ / $
  */
-function normalizeMathSyntax(text) {
+function normalizeMathSyntax(text, model) {
   if (!text) return text;
 
   let normalized = text;
@@ -93,7 +100,42 @@ function normalizeMathSyntax(text) {
     return '\n$$' + latex.trim() + '$$\n';
   });
 
+  // ChatGPT 專屬：清雜訊 + 轉裸括號
+  if (model === 'chatgpt') {
+    normalized = stripChatGPTNoise(normalized);
+    normalized = convertChatGPTBrackets(normalized);
+  }
+
   return normalized;
+}
+
+/**
+ * 移除單獨成行的 ====== (ChatGPT 輸出時誤入公式之間,會被 marked 當成 H1 分隔線)
+ */
+function stripChatGPTNoise(text) {
+  return text.replace(/^={3,}\s*$/gm, '');
+}
+
+/**
+ * 把含 LaTeX 指令的裸 [ ... ] / ( ... ) 轉成 KaTeX 可識別的 $$ / $
+ * 判斷條件：括號內出現反斜線指令 (例如 \frac, \int, \bar, \sum, \sqrt...)
+ * 不含 LaTeX 指令的括號 (markdown 連結、中文括號) 保持原樣
+ */
+function convertChatGPTBrackets(text) {
+  const hasLatexCommand = /\\[a-zA-Z]+/;
+
+  // 規則 1：獨佔一行的 [ ... ] (允許前後空白) → $$ ... $$
+  text = text.replace(/^[ \t]*\[\s*([\s\S]+?)\s*\][ \t]*$/gm, function (match, inner) {
+    return hasLatexCommand.test(inner) ? '\n$$' + inner.trim() + '$$\n' : match;
+  });
+
+  // 規則 2：行內 ( ... ) 含 LaTeX 指令 → $ ... $
+  // 不跨行、不允許巢狀括號
+  text = text.replace(/\(([^()\n]+?)\)/g, function (match, inner) {
+    return hasLatexCommand.test(inner) ? '$' + inner.trim() + '$' : match;
+  });
+
+  return text;
 }
 
 /**
@@ -318,6 +360,19 @@ function showToast(message) {
 // ============================================================
 
 btnToggle.addEventListener('click', togglePreview);
+
+// ===== AI 模型切換 =====
+
+modelSelect.value = currentModel;
+modelSelect.addEventListener('change', function () {
+  currentModel = modelSelect.value;
+  localStorage.setItem('aiModel', currentModel);
+  // 如果目前在預覽模式,自動重新渲染讓使用者馬上看到效果
+  if (isPreviewMode) {
+    isPreviewMode = false;
+    togglePreview();
+  }
+});
 
 // ===== 深色 / 淺色模式切換 =====
 
