@@ -33,10 +33,12 @@ marked.setOptions({
  * 會保護 LaTeX 不被 marked.js 破壞
  */
 function renderToHTML(rawText) {
+  // 先把 ChatGPT 常見 LaTeX 寫法轉成 KaTeX auto-render 可識別的 $ / $$ 格式
+  const normalizedText = normalizeMathSyntax(rawText);
   const mathBlocks = [];
 
   // 步驟 1：抽出 LaTeX，用佔位符取代
-  let protectedText = rawText.replace(/\$\$([\s\S]+?)\$\$/g, function (match, latex) {
+  let protectedText = normalizedText.replace(/\$\$([\s\S]+?)\$\$/g, function (match, latex) {
     const index = mathBlocks.length;
     mathBlocks.push({ latex: latex, display: true });
     return '@@MATH_BLOCK_' + index + '@@';
@@ -66,13 +68,44 @@ function renderToHTML(rawText) {
 }
 
 /**
+ * 將不同 AI 常見輸出的數學語法統一：
+ * 1) \[ ... \] => $$ ... $$
+ * 2) \( ... \) => $ ... $
+ * 3) ```math ... ``` => $$ ... $$
+ */
+function normalizeMathSyntax(text) {
+  if (!text) return text;
+
+  let normalized = text;
+
+  // display math: \[ ... \]
+  normalized = normalized.replace(/\\\[([\s\S]+?)\\\]/g, function (match, latex) {
+    return '\n$$' + latex.trim() + '$$\n';
+  });
+
+  // inline math: \( ... \)
+  normalized = normalized.replace(/\\\(([\s\S]+?)\\\)/g, function (match, latex) {
+    return '$' + latex.trim() + '$';
+  });
+
+  // fenced math block: ```math ... ```
+  normalized = normalized.replace(/```(?:math|latex)\s*([\s\S]+?)```/gi, function (match, latex) {
+    return '\n$$' + latex.trim() + '$$\n';
+  });
+
+  return normalized;
+}
+
+/**
  * 對一個 DOM 元素執行 KaTeX 渲染
  */
 function renderKaTeX(element) {
   renderMathInElement(element, {
     delimiters: [
       { left: '$$', right: '$$', display: true },
-      { left: '$', right: '$', display: false }
+      { left: '$', right: '$', display: false },
+      { left: '\\[', right: '\\]', display: true },
+      { left: '\\(', right: '\\)', display: false }
     ],
     throwOnError: false
   });
