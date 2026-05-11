@@ -1,0 +1,329 @@
+/* ===== 主題顏色變數 ===== */
+:root {
+  --color-bg:          #f5f5f7;
+  --color-surface:     #ffffff;
+  --color-text:        #1a1a1a;
+  --color-text-muted:  #64748b;
+  --color-text-quote:  #475569;
+  --color-border:      #d1d5db;
+  --color-border-soft: #e0e0e0;
+  --color-code-inline: #f1f5f9;
+  --color-th-bg:       #f1f5f9;
+  --color-page-header: #f8fafc;
+  --color-toast-bg:    #1a1a1a;
+  --color-toast-text:  #ffffff;
+}
+
+[data-theme="dark"] {
+  --color-bg:          #0f172a;
+  --color-surface:     #1e293b;
+  --color-text:        #e2e8f0;
+  --color-text-muted:  #94a3b8;
+  --color-text-quote:  #cbd5e1;
+  --color-border:      #334155;
+  --color-border-soft: #1e293b;
+  --color-code-inline: #1e3a5f;
+  --color-th-bg:       #1e3a5f;
+  --color-page-header: #162032;
+  --color-toast-bg:    #e2e8f0;
+  --color-toast-text:  #0f172a;
+}
+
+/* ===== 全域重置與基礎設定 ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  transition: background-color 0.3s, color 0.3s;
+  -webkit-tap-highlight-color: transparent; /* 移除 iPad 點擊灰色閃爍 */
+}
+
+/* ===== 標題列 ===== */
+.header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: 16px 24px;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* ===== 工具列 ===== */
+.toolbar {
+  display: flex;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-soft);
+  justify-content: center;
+}
+
+/* 按鈕共用樣式：大觸控目標，適合 iPad */
+.btn {
+  min-height: 52px;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.btn:active {
+  opacity: 0.7;
+}
+
+/* 預覽/編輯 按鈕 */
+.btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* 複製為圖片 按鈕 */
+.btn-success {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+/* 按鈕小尺寸版本（用在每頁的複製按鈕） */
+.btn-sm {
+  min-height: 44px;
+  padding: 8px 20px;
+  font-size: 15px;
+}
+
+/* ===== 內容區 ===== */
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  flex: 1;
+}
+
+/* 文字輸入框 */
+#editor {
+  width: 100%;
+  min-height: 60vh;
+  padding: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--color-text);
+  background: var(--color-surface);
+  resize: vertical;
+  outline: none;
+}
+
+#editor:focus {
+  border-color: #2563eb;
+}
+
+/* ===== 分頁容器 ===== */
+.pages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ===== 單頁卡片 ===== */
+.page-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* 頁面標頭：頁碼 + 複製按鈕 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: var(--color-page-header);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.page-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* 頁面內容區（會被 html2canvas 截圖的部分） */
+.page-content {
+  padding: 24px;
+  line-height: 1.8;
+  overflow: hidden;
+}
+
+/* ===== 隱藏的測量區 ===== */
+.measure-box {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 752px; /* 800px max-width - 48px padding (24*2) */
+  padding: 24px;
+  line-height: 1.8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  visibility: hidden;
+}
+
+/* ===== Markdown 渲染後的排版（適用於 .page-content 和 .measure-box） ===== */
+.page-content h1, .page-content h2, .page-content h3,
+.page-content h4, .page-content h5, .page-content h6,
+.measure-box h1, .measure-box h2, .measure-box h3,
+.measure-box h4, .measure-box h5, .measure-box h6 {
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.page-content h1, .measure-box h1 { font-size: 1.6em; }
+.page-content h2, .measure-box h2 { font-size: 1.4em; }
+.page-content h3, .measure-box h3 { font-size: 1.2em; }
+
+.page-content p, .measure-box p {
+  margin-bottom: 0.8em;
+}
+
+.page-content ul, .page-content ol,
+.measure-box ul, .measure-box ol {
+  margin-bottom: 0.8em;
+  padding-left: 1.5em;
+}
+
+.page-content li, .measure-box li {
+  margin-bottom: 0.3em;
+}
+
+.page-content code, .measure-box code {
+  background: var(--color-code-inline);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 0.9em;
+}
+
+.page-content pre, .measure-box pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+
+.page-content pre code, .measure-box pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.page-content blockquote, .measure-box blockquote {
+  border-left: 4px solid #2563eb;
+  padding-left: 16px;
+  margin-bottom: 0.8em;
+  color: var(--color-text-quote);
+}
+
+.page-content table, .measure-box table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+}
+
+.page-content th, .page-content td,
+.measure-box th, .measure-box td {
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.page-content th, .measure-box th {
+  background: var(--color-th-bg);
+  font-weight: 600;
+}
+
+.page-content hr, .measure-box hr {
+  border: none;
+  border-top: 1px solid var(--color-border-soft);
+  margin: 1.5em 0;
+}
+
+/* KaTeX 長公式水平捲動，不撐破版面 */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0;
+}
+
+/* 強化 Safari/iPad 上 KaTeX 根號線與分數線的渲染穩定性 */
+.katex .sqrt .sqrt-line,
+.katex .frac-line {
+  will-change: transform;
+}
+
+/* ===== 隱藏用的 class ===== */
+.hidden {
+  display: none !important;
+}
+
+/* ===== 複製成功 Toast 提示 ===== */
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-toast-bg);
+  color: var(--color-toast-text);
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.toast.show {
+  display: block !important;
+  opacity: 1;
+}
+
+/* ===== 深/淺色模式切換按鈕 ===== */
+#btn-theme {
+  min-height: 52px;
+  min-width: 52px;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  background: var(--color-code-inline);
+  color: var(--color-text);
+  transition: opacity 0.2s, background 0.3s;
+  user-select: none;
+}
+
+#btn-theme:active {
+  opacity: 0.7;
+}

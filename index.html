@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>AI Study Notebook</title>
+
+  <!-- KaTeX：數學公式渲染 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+
+  <!-- marked.js：Markdown 解析 -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+
+  <!-- modern-screenshot：在 app.js 中以 ES Module 方式載入 -->
+
+  <!-- 本地樣式 -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 標題列 -->
+  <header class="header">
+    <h1>AI Study Notebook</h1>
+  </header>
+
+  <!-- 工具列 -->
+  <div class="toolbar">
+    <button id="btn-toggle" class="btn btn-primary">預覽</button>
+    <button id="btn-theme" title="切換深色/淺色模式">🌙</button>
+  </div>
+
+  <!-- 內容區 -->
+  <main class="content">
+    <!-- 編輯模式：文字輸入框 -->
+    <textarea
+      id="editor"
+      placeholder="在這裡貼上 AI 產生的 Markdown / LaTeX 文字..."
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+    ></textarea>
+
+    <!-- 預覽模式：分頁卡片容器 -->
+    <div id="pages-container" class="pages-container hidden"></div>
+
+    <!-- 隱藏的測量區：用來先渲染內容再測量高度進行分頁 -->
+    <div id="measure-box" class="measure-box"></div>
+  </main>
+
+  <!-- 複製成功提示 -->
+  <div id="toast" class="toast hidden">已複製到剪貼簿!</div>
+
+  <!-- 本地腳本 -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
