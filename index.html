@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>AI Capture</title>
+  <title>AI Capture — Copy AI answers as images</title>
 
   <!-- KaTeX：數學公式渲染 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
@@ -30,8 +30,8 @@
 
   <!-- 工具列 -->
   <div class="toolbar">
-    <button id="btn-toggle" class="btn btn-primary">預覽</button>
-    <select id="ai-model" title="選擇 AI 來源">
+    <button id="btn-toggle" class="btn btn-primary">Preview</button>
+    <select id="ai-model" title="Select AI source">
       <option value="claude">Claude</option>
       <option value="gemini">Gemini</option>
       <option value="chatgpt">ChatGPT</option>
@@ -44,7 +44,7 @@
     <!-- 編輯模式：文字輸入框 -->
     <textarea
       id="editor"
-      placeholder="在這裡貼上 AI 產生的 Markdown / LaTeX 文字..."
+      placeholder="Paste AI-generated Markdown / LaTeX text here..."
       autocapitalize="off"
       autocorrect="off"
       spellcheck="false"

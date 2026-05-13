@@ -333,7 +333,7 @@ function buildPageCards(pages) {
 
     const copyBtn = document.createElement('button');
     copyBtn.className = 'btn btn-success btn-sm';
-    copyBtn.textContent = '複製這頁';
+    copyBtn.textContent = 'Copy page';
     copyBtn.setAttribute('data-page', i);
     copyBtn.addEventListener('click', function () {
       copyPageAsImage(i);
@@ -371,7 +371,7 @@ function togglePreview() {
     const rawText = editor.value.trim();
 
     if (rawText === '') {
-      pagesContainer.innerHTML = '<p style="color:#94a3b8; padding: 24px;">還沒有內容，請先貼上 Markdown / LaTeX 文字。</p>';
+      pagesContainer.innerHTML = '<p style="color:#94a3b8; padding: 24px;">No content yet. Paste some Markdown / LaTeX text first.</p>';
     } else {
       // 渲染 → 分頁 → 建立卡片
       const html = renderToHTML(rawText);
@@ -381,12 +381,12 @@ function togglePreview() {
 
     editor.classList.add('hidden');
     pagesContainer.classList.remove('hidden');
-    btnToggle.textContent = '編輯';
+    btnToggle.textContent = 'Edit';
   } else {
     // 切換回編輯模式
     editor.classList.remove('hidden');
     pagesContainer.classList.add('hidden');
-    btnToggle.textContent = '預覽';
+    btnToggle.textContent = 'Preview';
   }
 
   isPreviewMode = !isPreviewMode;
@@ -423,7 +423,7 @@ async function copyPageAsImage(pageIndex) {
       })
     ]);
 
-    showToast('Page ' + (pageIndex + 1) + ' 已複製到剪貼簿!');
+    showToast('Page ' + (pageIndex + 1) + ' copied to clipboard!');
   } catch (err) {
     console.error('複製失敗:', err);
 
@@ -437,9 +437,9 @@ async function copyPageAsImage(pageIndex) {
       link.download = 'ai-note-page-' + (pageIndex + 1) + '.png';
       link.href = dataUrl;
       link.click();
-      showToast('剪貼簿不可用，已改為下載圖片');
+      showToast('Clipboard unavailable — image downloaded instead');
     } catch (downloadErr) {
-      alert('複製失敗！請確認是否使用 HTTPS 連線。\n錯誤訊息：' + err.message);
+      alert('Copy failed! Please make sure you are using an HTTPS connection.\nError: ' + err.message);
     }
   }
 }
@@ -484,7 +484,7 @@ editor.addEventListener('paste', function (e) {
   const newPos = start + markdown.length;
   editor.setSelectionRange(newPos, newPos);
 
-  showToast('已用 HTML 模式貼上（公式準確度更高）');
+  showToast('Pasted in HTML mode (better formula accuracy)');
 });
 
 // ===== AI 模型切換 =====
