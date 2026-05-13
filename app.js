@@ -26,6 +26,44 @@ marked.setOptions({
   gfm: true      // GitHub 風格 Markdown
 });
 
+// --- 設定 Turndown：把 ChatGPT 網頁複製的 HTML 轉成乾淨 Markdown + LaTeX ---
+const turndownService = new TurndownService({
+  headingStyle: 'atx',
+  bulletListMarker: '-',
+  codeBlockStyle: 'fenced'
+});
+
+// 自訂規則：把 KaTeX 元素換回 $...$ / $$...$$
+// 原始 LaTeX 由 KaTeX 內嵌的 <annotation encoding="application/x-tex"> 取得，
+// 比起靠 regex 猜分隔符可靠得多
+turndownService.addRule('katex', {
+  filter: function (node) {
+    return node.nodeName === 'SPAN'
+      && node.classList
+      && node.classList.contains('katex')
+      && !node.classList.contains('katex-display'); // 區塊外層交給下一個規則處理
+  },
+  replacement: function (content, node) {
+    const annotation = node.querySelector('annotation[encoding="application/x-tex"]');
+    if (!annotation) return content;
+    const latex = annotation.textContent.trim();
+    const isDisplay = node.closest('.katex-display') !== null;
+    return isDisplay ? '\n\n$$' + latex + '$$\n\n' : '$' + latex + '$';
+  }
+});
+
+// 區塊公式外層 .katex-display：避免內外兩層都觸發
+turndownService.addRule('katex-display-wrapper', {
+  filter: function (node) {
+    return node.nodeName === 'SPAN'
+      && node.classList
+      && node.classList.contains('katex-display');
+  },
+  replacement: function (content) {
+    return content; // 內層 .katex 已輸出 $$...$$
+  }
+});
+
 // ============================================================
 // 核心功能 1：LaTeX 保護 + Markdown 渲染（產出 HTML 字串）
 // ============================================================
@@ -42,13 +80,13 @@ function renderToHTML(rawText) {
   // 步驟 1：抽出 LaTeX，用佔位符取代
   let protectedText = normalizedText.replace(/\$\$([\s\S]+?)\$\$/g, function (match, latex) {
     const index = mathBlocks.length;
-    mathBlocks.push({ latex: latex, display: true });
+    mathBlocks.push({ latex: escapeLatexPercent(latex), display: true });
     return '@@MATH_BLOCK_' + index + '@@';
   });
 
   protectedText = protectedText.replace(/\$([^\$\n]+?)\$/g, function (match, latex) {
     const index = mathBlocks.length;
-    mathBlocks.push({ latex: latex, display: false });
+    mathBlocks.push({ latex: escapeLatexPercent(latex), display: false });
     return '@@MATH_BLOCK_' + index + '@@';
   });
 
@@ -110,32 +148,95 @@ function normalizeMathSyntax(text, model) {
 }
 
 /**
- * 移除單獨成行的 ====== (ChatGPT 輸出時誤入公式之間,會被 marked 當成 H1 分隔線)
+ * 處理 ChatGPT 輸出裡常見的雜訊
+ *
+ * 雜訊類型 1：====== 視覺長等號
+ *   - 在 [ ... ] 區塊「內」：換成 = (保留等號語意，公式可串成等式鏈)
+ *   - 在 [ ... ] 區塊「外」：整行刪除 (避免被 marked.js 當成 H1 underline)
+ *
+ * 雜訊類型 2：# 誤加在 [ 前面 (例如「# [」)
+ *   - ChatGPT 偶爾會把多行公式區塊的 [ 前面加上 # (大概是想當成段落分隔)，
+ *     但 marked.js 會把它當成 H1 標題，[ 變成標題內容，
+ *     導致 [ ... ] 整個區塊無法被偵測為顯示公式。
+ *   - 處理：把 # / ## / ### 等開頭、後面只接 [ 的行，把 # 標記去掉
  */
 function stripChatGPTNoise(text) {
-  return text.replace(/^={3,}\s*$/gm, '');
+  // 1. [ 前面誤加的 # 標題標記 → 拿掉
+  text = text.replace(/^#+[ \t]+\[[ \t]*$/gm, '[');
+
+  // 2a. ====== 在區塊內 → =
+  text = text.replace(/(^[ \t]*\[[ \t]*\r?\n)([\s\S]+?)(\r?\n[ \t]*\][ \t]*$)/gm, function (match, open, body, close) {
+    const fixed = body.replace(/^={3,}[ \t]*$/gm, '=');
+    return open + fixed + close;
+  });
+
+  // 2b. ====== 在區塊外 → 整行刪除
+  text = text.replace(/^={3,}\s*$/gm, '');
+
+  return text;
 }
 
 /**
- * 把含 LaTeX 指令的裸 [ ... ] / ( ... ) 轉成 KaTeX 可識別的 $$ / $
- * 判斷條件：括號內出現反斜線指令 (例如 \frac, \int, \bar, \sum, \sqrt...)
- * 不含 LaTeX 指令的括號 (markdown 連結、中文括號) 保持原樣
+ * 把 ChatGPT 用裸括號包起來的數學式轉成 KaTeX 可識別的 $$ / $
+ *
+ * ChatGPT 顯示公式的特徵格式：
+ *   [
+ *   公式內容
+ *   ]
+ * (即 [ 和 ] 各自獨佔一行) — 無論內容有沒有 LaTeX 指令，都當顯示公式處理
+ *
+ * 對於同一行的 [ ... ]，為了不破壞 markdown 連結參考、清單等，
+ * 仍保留啟發式判斷：需含 LaTeX 特徵 (反斜線指令 / _{ / ^{ ) 才轉換
+ *
+ * 重要：規則 1 轉好的數學區塊必須先用佔位符藏起來，
+ * 否則規則 2 會把區塊內部的 ( ... ) 又改成 $ ... $，造成 $$ 內塞 $ 的巢狀錯誤。
  */
 function convertChatGPTBrackets(text) {
-  const hasLatexCommand = /\\[a-zA-Z]+/;
+  const hasLatexPattern = /\\[a-zA-Z]+|[_^]\{/;
+  const stashed = [];
 
-  // 規則 1：獨佔一行的 [ ... ] (允許前後空白) → $$ ... $$
-  text = text.replace(/^[ \t]*\[\s*([\s\S]+?)\s*\][ \t]*$/gm, function (match, inner) {
-    return hasLatexCommand.test(inner) ? '\n$$' + inner.trim() + '$$\n' : match;
+  function stash(latex) {
+    const idx = stashed.length;
+    stashed.push('\n$$' + latex.trim() + '$$\n');
+    return '@@CGT_MATH_' + idx + '@@';
+  }
+
+  // 規則 1a：跨行的 [ ... ] 區塊 → 暫存為佔位符
+  // [ 和 ] 各自獨佔一行；中間任意內容；一律視為顯示公式
+  text = text.replace(/^[ \t]*\[[ \t]*\r?\n([\s\S]+?)\r?\n[ \t]*\][ \t]*$/gm, function (match, inner) {
+    return stash(inner);
   });
 
-  // 規則 2：行內 ( ... ) 含 LaTeX 指令 → $ ... $
-  // 不跨行、不允許巢狀括號
+  // 規則 1b：同一行的 [ ... ] → 須含 LaTeX 特徵才轉換 (避免誤判 markdown)
+  text = text.replace(/^[ \t]*\[[ \t]*([^\n\[\]]+?)[ \t]*\][ \t]*$/gm, function (match, inner) {
+    return hasLatexPattern.test(inner) ? stash(inner) : match;
+  });
+
+  // 規則 2：行內 ( ... ) 含 LaTeX 特徵 → $ ... $
+  // 此時上面藏起來的數學區塊已變成 @@CGT_MATH_n@@ 佔位符，不會被誤傷
   text = text.replace(/\(([^()\n]+?)\)/g, function (match, inner) {
-    return hasLatexCommand.test(inner) ? '$' + inner.trim() + '$' : match;
+    return hasLatexPattern.test(inner) ? '$' + inner.trim() + '$' : match;
+  });
+
+  // 還原佔位符
+  text = text.replace(/@@CGT_MATH_(\d+)@@/g, function (match, idxStr) {
+    return stashed[parseInt(idxStr)];
   });
 
   return text;
+}
+
+/**
+ * 把 LaTeX 內未跳脫的 % 自動補成 \%
+ *
+ * 為什麼需要：在 LaTeX/KaTeX 規則裡 % 是註解符號，從 % 到行尾都會被忽略。
+ * AI 輸出像 95.6% 這種百分比時常常忘記跳脫，結果 \boxed{...} 的右括號被吃掉、
+ * 整個公式渲染失敗（紅字）。
+ *
+ * 規則：只在 % 前面「不是反斜線」時補跳脫，避免把已經正確的 \% 變成 \\%
+ */
+function escapeLatexPercent(latex) {
+  return latex.replace(/(^|[^\\])%/g, '$1\\%');
 }
 
 /**
@@ -360,6 +461,31 @@ function showToast(message) {
 // ============================================================
 
 btnToggle.addEventListener('click', togglePreview);
+
+// ===== ChatGPT 專用：貼上時改抓 HTML 取得精確 LaTeX =====
+editor.addEventListener('paste', function (e) {
+  if (currentModel !== 'chatgpt') return;
+
+  const html = e.clipboardData && e.clipboardData.getData('text/html');
+  if (!html) return; // 沒 HTML 就維持預設純文字貼上
+
+  // 沒偵測到 KaTeX 結構就不攔截 (例如從筆記軟體貼純文字)
+  if (!/class="[^"]*\bkatex\b/.test(html)) return;
+
+  e.preventDefault();
+  const markdown = turndownService.turndown(html);
+
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const before = editor.value.substring(0, start);
+  const after = editor.value.substring(end);
+  editor.value = before + markdown + after;
+
+  const newPos = start + markdown.length;
+  editor.setSelectionRange(newPos, newPos);
+
+  showToast('已用 HTML 模式貼上（公式準確度更高）');
+});
 
 // ===== AI 模型切換 =====
 
