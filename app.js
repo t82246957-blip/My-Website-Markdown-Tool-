@@ -1,4 +1,4 @@
-// ===== AI Study Notebook - 主程式（含自動分頁） =====
+// ===== AI Capture - 主程式（含自動分頁） =====
 
 // --- 載入 modern-screenshot（取代 html2canvas，修復 iPad 上 KaTeX 截圖排版問題） ---
 import { domToBlob, domToPng } from 'https://cdn.jsdelivr.net/npm/modern-screenshot@4.5.5/dist/index.mjs';
